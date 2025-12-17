@@ -1,0 +1,111 @@
+.\"
+.\" PYHPFEC man page
+.\"
+.TH PYHPFEC 3 "December 2025" "PyHPFEC" "Library Functions"
+.SH NAME
+pyhpfec \- High-Performance Forward Error Correction Library (Python)
+.SH SYNOPSIS
+.B from pyhpfec.cyclic import BCHGolayCoder
+.br
+.B from pyhpfec.config import GFContext
+.br
+.B 
+.B context = GFContext(M=4) 
+.br
+.B coder = BCHGolayCoder(n=15, k=7, t=2, gf_context=context)
+
+.SH DESCRIPTION
+The
+.B pyhpfec
+library provides optimized, thread-safe implementations of modern Forward Error Correction (FEC)
+codes, including BCH, Turbo, Polar, and LDPC. Performance is achieved using
+.B Numba JIT acceleration
+for algebraic and iterative decoding kernels.
+
+The architecture is built around the
+.B GFContext
+object, which manages Galois Field (GF) arithmetic via ultra-fast Log/Anti-Log tables,
+guaranteeing thread safety and high reliability for all GF-dependent operations. 
+
+.SH CORE CLASSES AND FUNCTIONS
+
+.SS 1. GFContext (pyhpfec.config)
+.B DESCRIPTION
+Manages the Galois Field configuration (M, Q, P_poly) and pre-computed
+tables (Log, Anti-Log, Inverse). This object
+.B MUST
+be passed to any GF-dependent code (BCH, NB-LDPC) for thread-safe operation.
+
+.B USAGE
+.RS
+.B GFContext(M)
+.br
+.I M:
+The power of the field (e.g., M=4 for GF(16)).
+.RE
+
+.B EXAMPLE
+.RS
+.nf
+>>> ctx = GFContext(M=4)
+>>> print(ctx.Q)
+16
+.fi
+.RE
+
+.SS 2. BCHGolayCoder (pyhpfec.cyclic)
+.B DESCRIPTION
+Implements BCH and Golay encoding and decoding. Features hard-decision
+algebraic decoding and soft-decision Chase decoding.
+
+.B USAGE
+.RS
+.B BCHGolayCoder(n, k, t, gf_context=...)
+.br
+.I n:
+Codeword length.
+.I k:
+Data length.
+.I t:
+Error correction capability.
+.RE
+
+.B METHODS
+.RS
+.TP
+.B encode(data)
+Encodes k data bits into n codeword bits.
+
+.TP
+.B decode(input, is_llr=True, soft_decision=False)
+The primary decoding interface.
+.br
+.I INPUT:
+LLRs (if is_llr=True) or hard bits (0/1).
+.br
+.br
+\fBDecoding Modes:\fR
+.br
+.br
+\fB* Hard-Decision (Algebraic):\fR Use \fIsoft_decision=False\fR (default). Corrects up to \fIt\fR errors.
+.br
+\fB* Soft-Decision (Chase):\fR Set \fIsoft_decision=True\fR. Uses the Maximum Likelihood (ML) 
+metric based on LLRs for improved performance by testing unreliable bits. 
+.RE
+
+.B EXAMPLE
+.RS
+.nf
+>>> # Hard-decision decoding (assuming received_hard is a numpy array)
+>>> decoded = coder.decode(received_hard, is_llr=False)
+>>> # Soft-decision decoding (LLRs required)
+>>> decoded_soft = coder.decode(llrs, is_llr=True, soft_decision=True)
+.fi
+.RE
+
+.SS 3. LDPC/Turbo/Polar Decoders
+.B DESCRIPTION
+All iterative decoders (LDPC, Turbo, Polar) use simple constructor
+signatures (e.g., TurboDecoder(k=100)) and expose a common
+\fBdecode(llrs, max_iterations=...)\fR interface.
+
